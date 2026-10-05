@@ -1,1 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probation evidence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { ink: '#1d2b2f', brand: '#0f5c63', paper: '#eef2ef', line: '#c3cfca', warn: '#b45f06' },
+  fontFamily: { sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'] }
+} } };
+</script>
+<style>
+  .field { width: 100%; border: 1px solid #c3cfca; border-radius: 8px; background: #fff; padding: 12px; font-size: 16px; }
+  .field:focus { outline: 2px solid #0f5c63; outline-offset: 1px; }
+</style>
+</head>
+<body class="bg-paper font-sans text-ink min-h-screen">
+<main class="max-w-md mx-auto p-4 pb-10">
+  <h1 class="text-2xl font-semibold mt-2">Probation evidence</h1>
+  <p class="text-sm text-ink/70 mb-5">Log an issue with photos taken before and after the fix.</p>
 
+  <form id="form" class="space-y-5" novalidate>
+    <div>
+      <label for="type" class="block text-sm font-medium mb-1">Type</label>
+      <select id="type" class="field" required>
+        <option value="" disabled selected>Select a probation goal</option>
+        <option>CCTV System Identification &amp; Documentation</option>
+        <option>CCTV/NVR Operation &amp; Troubleshooting</option>
+        <option>Backup &amp; Recovery Awareness</option>
+        <option>Documentation, Safety &amp; Escalation</option>
+      </select>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <span class="block text-sm font-medium mb-1">Before</span>
+        <label for="before" class="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-warn bg-white text-center cursor-pointer focus-within:ring-2 focus-within:ring-brand">
+          <input id="before" type="file" accept="image/*" capture="environment" class="sr-only">
+          <img id="before-img" alt="Before photo" class="hidden absolute inset-0 h-full w-full object-cover">
+          <span id="before-ph" class="px-2 text-sm text-warn">
+            <svg class="mx-auto mb-1 h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            Take photo
+          </span>
+        </label>
+      </div>
+      <div>
+        <span class="block text-sm font-medium mb-1">After</span>
+        <label for="after" class="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-brand bg-white text-center cursor-pointer focus-within:ring-2 focus-within:ring-brand">
+          <input id="after" type="file" accept="image/*" capture="environment" class="sr-only">
+          <img id="after-img" alt="After photo" class="hidden absolute inset-0 h-full w-full object-cover">
+          <span id="after-ph" class="px-2 text-sm text-brand">
+            <svg class="mx-auto mb-1 h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            Take photo
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div>
+      <label for="remark" class="block text-sm font-medium mb-1">Remark</label>
+      <textarea id="remark" rows="3" class="field" placeholder="What needs to be done, observations, pending items"></textarea>
+    </div>
+
+    <div>
+      <label for="notes" class="block text-sm font-medium mb-1">Notes</label>
+      <textarea id="notes" rows="3" class="field" placeholder="Actions taken to resolve the issue"></textarea>
+    </div>
+
+    <button id="submit" type="submit" class="flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-3 font-medium text-white disabled:opacity-60">
+      <svg id="spinner" class="hidden h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+      <span id="submit-label">Save evidence</span>
+    </button>
+    <p id="status" role="status" aria-live="polite" class="text-sm"></p>
+  </form>
+</main>
+
+<script>
+const SCRIPT_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+
+const $ = id => document.getElementById(id);
+const photos = { before: '', after: '' };
+
+// Resize + convert a camera photo to a base64 JPEG data URL
+function toBase64(file, max = 1280, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => reject(new Error('Could not read the photo. Try taking it again.'));
+    img.src = url;
+  });
+}
+
+['before', 'after'].forEach(key => {
+  $(key).addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      photos[key] = await toBase64(file);
+      $(key + '-img').src = photos[key];
+      $(key + '-img').classList.remove('hidden');
+      $(key + '-ph').classList.add('hidden');
+    } catch (err) { status(err.message, false); }
+  });
+});
+
+function status(text, ok) {
+  const el = $('status');
+  el.textContent = text;
+  el.className = 'text-sm ' + (ok ? 'text-brand' : 'text-red-700');
+}
+
+function setBusy(busy) {
+  $('submit').disabled = busy;
+  $('spinner').classList.toggle('hidden', !busy);
+  $('submit-label').textContent = busy ? 'Saving…' : 'Save evidence';
+}
+
+function resetForm() {
+  $('form').reset();
+  photos.before = photos.after = '';
+  ['before', 'after'].forEach(k => {
+    $(k + '-img').classList.add('hidden');
+    $(k + '-img').removeAttribute('src');
+    $(k + '-ph').classList.remove('hidden');
+  });
+}
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!$('type').value) return status('Select a probation goal before saving.', false);
+  status('', true);
+  setBusy(true);
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight
+      body: JSON.stringify({
+        type: $('type').value,
+        before: photos.before,
+        after: photos.after,
+        remark: $('remark').value.trim(),
+        notes: $('notes').value.trim()
+      })
+    });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'The server rejected the entry.');
+    resetForm();
+    status('Evidence saved as No. ' + out.no + '.', true);
+  } catch (err) {
+    status('Could not save evidence: ' + err.message + ' Check your connection and try again.', false);
+  } finally {
+    setBusy(false);
+  }
+});
+</script>
+</body>
+</html>
