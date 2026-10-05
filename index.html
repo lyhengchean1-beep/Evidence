@@ -37,24 +37,24 @@ tailwind.config = { theme: { extend: {
 
     <div class="grid grid-cols-2 gap-3">
       <div>
-        <span class="block text-sm font-medium mb-1">Before</span>
+        <span class="block text-sm font-medium mb-1">1. Before</span>
         <label for="before" class="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-warn bg-white text-center cursor-pointer focus-within:ring-2 focus-within:ring-brand">
           <input id="before" type="file" accept="image/*" capture="environment" class="sr-only">
           <img id="before-img" alt="Before photo" class="hidden absolute inset-0 h-full w-full object-cover">
           <span id="before-ph" class="px-2 text-sm text-warn">
             <svg class="mx-auto mb-1 h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
-            Take photo
+            <span id="before-hint">Take photo</span>
           </span>
         </label>
       </div>
       <div>
-        <span class="block text-sm font-medium mb-1">After</span>
-        <label for="after" class="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-brand bg-white text-center cursor-pointer focus-within:ring-2 focus-within:ring-brand">
-          <input id="after" type="file" accept="image/*" capture="environment" class="sr-only">
+        <span class="block text-sm font-medium mb-1">2. After</span>
+        <label id="after-tile" for="after" class="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-brand bg-white text-center cursor-not-allowed opacity-50 focus-within:ring-2 focus-within:ring-brand">
+          <input id="after" type="file" accept="image/*" capture="environment" class="sr-only" disabled>
           <img id="after-img" alt="After photo" class="hidden absolute inset-0 h-full w-full object-cover">
           <span id="after-ph" class="px-2 text-sm text-brand">
             <svg class="mx-auto mb-1 h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
-            Take photo
+            <span id="after-hint">Take Before first</span>
           </span>
         </label>
       </div>
@@ -79,7 +79,7 @@ tailwind.config = { theme: { extend: {
 </main>
 
 <script>
-const SCRIPT_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxUltDDvn0y1yXdOJaD09WFWQRcoy9Zp90vbLnB6aS9Wmy7Z137pP7day7UPX8vb_vS/exec';
 
 const $ = id => document.getElementById(id);
 const photos = { before: '', after: '' };
@@ -109,6 +109,7 @@ function toBase64(file, max = 1280, quality = 0.75) {
     if (!file) return;
     try {
       photos[key] = await toBase64(file);
+      if (key === 'before') unlockAfter(true);
       $(key + '-img').src = photos[key];
       $(key + '-img').classList.remove('hidden');
       $(key + '-ph').classList.add('hidden');
@@ -128,7 +129,17 @@ function setBusy(busy) {
   $('submit-label').textContent = busy ? 'Saving…' : 'Save evidence';
 }
 
+function unlockAfter(on) {
+  const tile = $('after-tile');
+  $('after').disabled = !on;
+  tile.classList.toggle('opacity-50', !on);
+  tile.classList.toggle('cursor-not-allowed', !on);
+  tile.classList.toggle('cursor-pointer', on);
+  $('after-hint').textContent = on ? 'Take photo' : 'Take Before first';
+}
+
 function resetForm() {
+  unlockAfter(false);
   $('form').reset();
   photos.before = photos.after = '';
   ['before', 'after'].forEach(k => {
@@ -141,6 +152,7 @@ function resetForm() {
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   if (!$('type').value) return status('Select a probation goal before saving.', false);
+  if (!photos.before) return status('Take the Before photo first.', false);
   status('', true);
   setBusy(true);
   try {
